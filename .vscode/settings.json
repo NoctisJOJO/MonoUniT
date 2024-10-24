@@ -1,0 +1,9 @@
+{
+    "commentTranslate.source": "deeplx-comment-translate.deeplx-comment-translate-deeplx",
+    "aide.convertLanguagePairs": {
+        "python": "cpp"
+    },
+    "deeplxTranslate.authKey": "https://api.deeplx.org/320U015d6v7cCFp3OMuu6o2UhhNmYROgTk5dawD-TNA/translate",
+    "commentTranslate.hover.enabled": true,
+    "commentTranslate.targetLanguage": "zh-CN"
+}

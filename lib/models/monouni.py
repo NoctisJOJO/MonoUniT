@@ -12,8 +12,8 @@ from lib.losses.loss_function import extract_input_from_tensor
 from lib.helpers.decode_helper import _topk,_nms
 
 def weights_init_xavier(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
+    classname = m.__class__.__name__  # 获取该模块的类名
+    if classname.find('Linear') != -1:  # 
         nn.init.xavier_uniform_(m.weight)
         if m.bias is not None:
             nn.init.constant_(m.bias, 0.0)

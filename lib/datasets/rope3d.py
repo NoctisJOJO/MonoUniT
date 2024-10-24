@@ -24,13 +24,13 @@ import pdb
 class Rope3D(data.Dataset):
     def __init__(self, root_dir, split, cfg):
         # basic configuration
-        self.num_classes = 4
-        self.max_objs = 50
+        self.num_classes = 4  # 类别数量
+        self.max_objs = 50  # 每张图片最多标注的物体数量
         self.class_name =  ['car','big_vehicle','pedestrian','cyclist']
-        self.cls2id = {'car': 0,'big_vehicle': 1,'pedestrian': 2,'cyclist': 3}
+        self.cls2id = {'car': 0,'big_vehicle': 1,'pedestrian': 2,'cyclist': 3}  # 类别映射到ID
         self.resolution = np.array([960, 512])  # W * H
-        self.use_3d_center = cfg['use_3d_center']
-        self.writelist = cfg['writelist']
+        self.use_3d_center = cfg['use_3d_center']  # 是否使用3D中心
+        self.writelist = cfg['writelist']  # 运行写入的类别列表
         if cfg['class_merging']:
             self.writelist.extend(['Van', 'Truck'])
         if cfg['use_dontcare']:
@@ -44,49 +44,49 @@ class Rope3D(data.Dataset):
          'Pedestrian': np.array([0.84422524,0.66068622,1.76255119]),
          'Cyclist': np.array([1.76282397,0.59706367,1.73698127])] 
         ''' 
-        ##l,w,h
-        self.cls_mean_size = np.array([[1.288762253204939, 1.6939648801353426, 4.25589251897889],
-                                       [1.7199308570318539, 1.7356837654961508, 4.641152817981265],
-                                       [2.682263889273618, 2.3482764551684268, 6.940250839428722],
-                                       [2.9588510594399073, 2.5199248789610693, 10.542197736838778]])
+        ##l,w,h  类别的平均尺寸数据——指导模型更准确地估计物体尺寸和提升预测稳定性
+        self.cls_mean_size = np.array([[1.288762253204939, 1.6939648801353426, 4.25589251897889],  # 小车
+                                       [1.7199308570318539, 1.7356837654961508, 4.641152817981265],  # 大车
+                                       [2.682263889273618, 2.3482764551684268, 6.940250839428722],  # 行人
+                                       [2.9588510594399073, 2.5199248789610693, 10.542197736838778]])  # 骑车人
         # data split loading
         # print(split)
         assert split in ['train', 'val']
         self.split = split
         split_dir = os.path.join(root_dir, 'ImageSets', split + '.txt')
-        self.idx_list = [x.strip() for x in open(split_dir).readlines()]
+        self.idx_list = [x.strip() for x in open(split_dir).readlines()]  # 一行行读取
 
         # path configuration
         self.data_dir = root_dir
         self.image_dir = os.path.join(self.data_dir, 'image_2')
         self.label_dir = os.path.join(self.data_dir, 'label_2_4cls_for_train')
         self.calib_dir = os.path.join(self.data_dir, 'calib')
-        self.denorm_dir = os.path.join(self.data_dir, 'denorm')
-        self.box3d_dense_depth_dir = os.path.join(self.data_dir, 'box3d_depth_dense')
+        self.denorm_dir = os.path.join(self.data_dir, 'denorm')  # 去归一化参数？
+        self.box3d_dense_depth_dir = os.path.join(self.data_dir, 'box3d_depth_dense')  # 3d立方体深度
 
-        self.interval_max = cfg['interval_max']
+        self.interval_max = cfg['interval_max']  # 最大间隔？什么作用
         self.interval_min = cfg['interval_min']
 
-        # data augmentation configuration
+        # data augmentation configuration  数据增强
         self.data_augmentation = True if split == 'train' else False
-        self.random_flip = cfg['random_flip']
-        self.random_crop = cfg['random_crop']
-        self.scale = cfg['scale']
-        self.shift = cfg['shift']
-        self.crop_with_optical_center = cfg['crop_with_optical_center']
-        self.crop_with_optical_center_with_fx_limit = True
-        self.scale_expand = cfg['scale_expand']
+        self.random_flip = cfg['random_flip']  # 随机水平翻转
+        self.random_crop = cfg['random_crop']  # 随机裁剪
+        self.scale = cfg['scale']  # 缩放比例
+        self.shift = cfg['shift']  # 平移比例
+        self.crop_with_optical_center = cfg['crop_with_optical_center']  # 是否以光学为中心裁剪
+        self.crop_with_optical_center_with_fx_limit = True  # 是否限制光心的x坐标
+        self.scale_expand = cfg['scale_expand']  # 扩展比例
         
 
         self.labels = []
-        # print('load_all_labels')
+        # print('load_all_labels')  # 加载所有标签
         for i in tqdm(range(len(self.idx_list)),desc='load_all_labels Progress'):
             idx = self.idx_list[i]
             label_file = os.path.join(self.label_dir,  idx+'.txt')
             assert os.path.exists(label_file)
             self.labels.append(get_objects_from_label(label_file))
 
-        # print('load_all_calib')
+        # print('load_all_calib')  # 加载所有校准参数
         self.calib = []
         for i in tqdm(range(len(self.idx_list)),desc='load_all_calib Progress'):
             idx = self.idx_list[i]
@@ -96,7 +96,7 @@ class Rope3D(data.Dataset):
             assert os.path.exists(calib_file)
             self.calib.append(Calibration(calib_file))
 
-        if self.load_data_once:
+        if self.load_data_once:  # 加载图片
             self.img_list = []
             for i in tqdm(range(len(self.idx_list)),desc='load_img Progress'):
                 idx = self.idx_list[i]
@@ -112,12 +112,12 @@ class Rope3D(data.Dataset):
 
 
 
-        # statistics
-        self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        self.std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        # statistics  # 统计信息
+        self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)  # 图像归一化的均值
+        self.std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)  # 图像归一化的标准差
 
         # others
-        self.downsample = 4
+        self.downsample = 4  # 下采样因子？
         
     def get_image(self, idx):
         if self.load_data_once:
@@ -152,6 +152,7 @@ class Rope3D(data.Dataset):
         return self.idx_list.__len__()
 
     def Flip_with_optical_center(self, img, calib,mean):
+        ''' 基于光心进行图像翻转'''
         cx = calib.P2[0, 2]
         cy = calib.P2[1, 2]
         h,w,_ = img.shape
@@ -187,18 +188,19 @@ class Rope3D(data.Dataset):
 
 
     def get_data(self, item):
+        '''获取单个数据样本'''
         #  ============================   get inputs   ===========================
         index = self.idx_list[item]  # index mapping, get real data id
         # image loading
-        # print(index)
-        img = self.get_image(index)
-        calib = copy.deepcopy(self.get_calib(index))
+        # print(index)    eg: 67980_fa2sd4adatasetfa2sd4a09151_420_1626164333_1626164784_272_obstacle
+        img = self.get_image(index)  # eg:67980_fa2sd4adatasetfa2sd4a09151_420_1626164333_1626164784_272_obstacle.png
+        calib = copy.deepcopy(self.get_calib(index))  # eg: 67980_fa2sd4adatasetfa2sd4a09151_420_1626164333_1626164784_272_obstacle.txt
         img_size = np.array([img.shape[1],img.shape[0]])
         random_crop_flag, random_flip_flag, random_expand_flag = False, False, False
         expand_scale = 1
         crop_scale = 1
         center = np.array(img_size) /2.
-        Denorm_ = self.get_denorm(index)
+        Denorm_ = self.get_denorm(index)  # eg: 67980_fa2sd4adatasetfa2sd4a09151_420_1626164333_1626164784_272_obstacle.txt
         if self.split == 'train':
             vis_depth_generate_new = cv2.imread('{}/{}.png'.format(self.box3d_dense_depth_dir, index), -1) / 256.
             vis_depth_generate_new =vis_depth_generate_new[:,:,np.newaxis]
@@ -303,37 +305,124 @@ class Rope3D(data.Dataset):
         if self.split == 'train':
             objects = copy.deepcopy(self.get_label(index))
 
-            # labels encoding
+            # labels encoding  # 初始化用于存储各种目标检测信息的数据结构
+            '''heatmap
+            用于生成物体类别的热力图。热力图的每个位置对应特征图上的一个像素点，其中的值表示该位置是物体中心的概率。模型通过预测热力图来定位物体的中心。
+            size_2d
+            存储目标物体在2D平面上的尺寸（如宽度和高度），这是模型预测物体在2D图像中的大小时要学习的目标。
+            offset_2d
+            物体中心点的偏移量，用于细化物体中心点在特征图上的位置。由于特征图通常是下采样的，物体的中心点可能不是整数坐标，偏移量用于提高中心点位置预测的精度。
+            depth_offset
+            物体的深度偏移量，是物体距离摄像机深度的精细调整参数。用于表示物体深度的残差值，帮助模型更精确地预测物体的深度。
+            depth_mask
+            深度掩码，用于标记哪些目标物体的深度是有效的。深度信息可能不是对所有物体都适用，因此这个掩码告诉模型要忽略哪些物体的深度预测。
+            depth_bin
+            表示物体深度的离散化区间。为了简化模型的深度预测，深度可以被划分成多个区间，depth_bin表示物体处于哪个深度区间。
+            heading_bin
+            用于存储物体的朝向（方向角）的离散化值。物体的方向通常会划分成几个区间，比如以45度为单位，heading_bin记录了物体朝向在哪个方向区间。
+            heading_res
+            表示物体方向的残差。离散化的方向预测可能不够精确，heading_res存储了方向角的精细调整值，帮助模型提高方向预测的精度。
+            depth
+            表示物体的实际深度，用于预测物体距离摄像机的距离。这个值是模型训练时要学习的目标之一。
+            src_size_3d
+            存储目标物体在3D空间中的原始尺寸，表示物体的长、宽、高。这是物体在真实世界中的尺寸，用来监督模型的3D尺寸预测。
+            size_3d
+            用于存储模型预测的3D物体的尺寸。模型会通过学习这些尺寸来理解物体在空间中的大小。
+            offset_3d
+            物体在3D空间中的位置偏移量。类似于2D偏移，这个参数用于帮助模型更精确地预测物体的3D位置。
+            cls_ids
+            物体的类别ID，用于指示每个目标属于哪个类别（如汽车、行人等）。这是分类任务的标签，模型通过学习这个标签来识别物体类别。
+            indices
+            物体在特征图上的索引，表示物体在特征图中的位置。用于匹配物体在特征图中的位置与其标签信息。
+            mask_2d
+            用于标记哪些2D目标是有效的。某些物体可能无法用2D信息表示，mask_2d会标记哪些物体应该被忽略，以免影响模型训练。
+            depth_bin_ind
+            存储深度区间的索引，用于表示物体在哪个深度区间。这个信息帮助模型将深度预测离散化，简化模型的学习。'''
+            # 热力图，用于表示每个类别在特征图上的目标位置
+            # 大小为 (num_classes, H, W)，即类别数量、特征图的高度和宽度
             heatmap = np.zeros((self.num_classes, features_size[1], features_size[0]), dtype=np.float32) # C * H * W
+            
+            # 2D尺寸，用于存储物体在2D图像中的宽度和高度
+            # 大小为 (max_objs, 2)，max_objs 是图片中最大物体数量，每个物体有两个尺寸值（宽、高）
             size_2d = np.zeros((self.max_objs, 2), dtype=np.float32)
+            
+            # 2D偏移量，用于存储物体在像素坐标中的偏移
+            # 大小为 (max_objs, 2)，每个物体有两个偏移值（x, y）
             offset_2d = np.zeros((self.max_objs, 2), dtype=np.float32)
+            
+            # 深度偏移，用于存储物体的深度偏移
+            # 大小为 (max_objs, 5)，每个物体有5个深度偏移值
             depth_offset = np.zeros((self.max_objs, 5), dtype=np.float32)
+            
+            # 深度掩码，用于标识哪些物体的深度信息是有效的
+            # 大小为 (max_objs, 5)，每个物体有5个深度信息
             depth_mask = np.zeros((self.max_objs, 5), dtype=np.int64)
+            
+            # 深度离散值，用于存储物体的深度离散分类结果
+            # 大小为 (max_objs, 1)，每个物体有1个深度离散值
             depth_bin = np.zeros((self.max_objs, 1), dtype=np.int64)
+            
+            # 物体朝向的离散值，用于存储物体朝向的分类结果
+            # 大小为 (max_objs, 1)，每个物体有1个朝向离散值
             heading_bin = np.zeros((self.max_objs, 1), dtype=np.int64)
+            
+            # 朝向残差，用于存储物体朝向的细微偏差
+            # 大小为 (max_objs, 1)，每个物体有1个朝向残差
             heading_res = np.zeros((self.max_objs, 1), dtype=np.float32)
+            
+            # 深度值，用于存储物体的实际深度
+            # 大小为 (max_objs, 1)，每个物体有1个深度值
             depth = np.zeros((self.max_objs, 1), dtype=np.float32)
+            
+            # 原始3D尺寸，用于存储物体的原始3D尺寸（高度、宽度、长度）
+            # 大小为 (max_objs, 3)，每个物体有三个尺寸值（高、宽、长）
             src_size_3d = np.zeros((self.max_objs, 3), dtype=np.float32)
+            
+            # 3D尺寸，用于存储物体在空间中的实际尺寸
+            # 大小为 (max_objs, 3)，每个物体有三个尺寸值
             size_3d = np.zeros((self.max_objs, 3), dtype=np.float32)
+            
+            # 3D偏移量，用于存储物体在空间中的偏移
+            # 大小为 (max_objs, 2)，每个物体有两个偏移值（x, y）
             offset_3d = np.zeros((self.max_objs, 2), dtype=np.float32)
+            
+            # 类别ID，用于存储每个物体的类别
+            # 大小为 (max_objs)，每个物体有1个类别ID
             cls_ids = np.zeros((self.max_objs), dtype=np.int64)
+            
+            # 索引，用于存储物体在特征图上的位置索引
+            # 大小为 (max_objs)，每个物体有1个索引
             indices = np.zeros((self.max_objs), dtype=np.int64)
+            
+            # 2D掩码，用于标识哪些物体的2D信息有效
+            # 大小为 (max_objs)，每个物体有一个布尔值
             mask_2d = np.zeros((self.max_objs), dtype=np.bool)
+            
+            # 深度离散值的索引，用于存储物体在不同深度类别中的索引
+            # 大小为 (max_objs, 5)，每个物体有5个深度索引
             depth_bin_ind = np.zeros((self.max_objs, 5), dtype=np.int64)
 
-
+            # 可视化深度信息，用于存储目标物体的深度特征
+            # 大小为 (max_objs, 5, 7, 7)，即：最大物体数量、5个深度通道、7x7的特征图
             vis_depth = np.zeros((self.max_objs, 5, 7, 7), dtype=np.float32)
+            
+            # 深度注意力信息，用于存储与深度相关的注意力权重
+            # 大小为 (max_objs, 5, 7, 7)，每个物体对应5个深度通道，且每个通道有7x7的特征
             att_depth = np.zeros((self.max_objs, 5, 7, 7), dtype=np.float32)
+            
+            # 深度掩码，用于标记哪些深度信息是有效的
+            # 大小为 (max_objs, 5, 7, 7)，每个物体的每个深度通道都有一个7x7的特征图，并且使用布尔值标识有效性
             depth_mask = np.zeros((self.max_objs,5, 7, 7), dtype=np.bool)
 
-
+            #  确定要处理的物体数量，最大不超过 max_objs
             object_num = len(objects) if len(objects) < self.max_objs else self.max_objs
             for i in range(object_num):
-                objects____ = objects[i]
+                objects____ = objects[i]  # 当前处理的物体
                 if objects[i].cls_type not in self.writelist:
                     continue
 
                 # print(objects[i].pos)
+                # 将物体的3D位置从地面中心转换到物体中心
                 objects[i].pos = Denorm_.ground_center2object_center(objects[i].pos.reshape(3,1),objects[i].h).reshape(-1)
                 depth_ = objects[i].pos[-1]
                 # print(objects[i].pos)
