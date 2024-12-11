@@ -61,7 +61,7 @@ class Rope3D(data.Dataset):
         self.image_dir = os.path.join(self.data_dir, 'image_2')
         self.label_dir = os.path.join(self.data_dir, 'label_2_4cls_for_train')
         self.calib_dir = os.path.join(self.data_dir, 'calib')
-        self.denorm_dir = os.path.join(self.data_dir, 'denorm')  # 地平面方程
+        self.denorm_dir = os.path.join(self.data_dir, 'denorm')  # 去归一化参数？
         self.box3d_dense_depth_dir = os.path.join(self.data_dir, 'box3d_depth_dense')  # 3d立方体深度
 
         self.interval_max = cfg['interval_max']  # 最大间隔？什么作用
@@ -421,7 +421,7 @@ class Rope3D(data.Dataset):
                 if objects[i].cls_type not in self.writelist:
                     continue
 
-                #print("object[i].pos:\n",objects[i].pos)
+                # print(objects[i].pos)
                 # 将物体的3D位置从地面中心转换到物体中心
                 objects[i].pos = Denorm_.ground_center2object_center(objects[i].pos.reshape(3,1),objects[i].h).reshape(-1)
                 depth_ = objects[i].pos[-1]
@@ -711,7 +711,7 @@ if __name__ == '__main__':
            'class_merging': False, 'writelist':['Pedestrian', 'Car', 'Cyclist'], 'use_3d_center':False}
     dataset = Rope3D('../../data', 'train', cfg)
     dataloader = DataLoader(dataset=dataset, batch_size=1)
-    print("dataset.writelist\n",dataset.writelist)
+    print(dataset.writelist)
 
     for batch_idx, (inputs, targets, info) in enumerate(dataloader):
         # test image
@@ -732,4 +732,4 @@ if __name__ == '__main__':
     # print ground truth fisrt
     objects = dataset.get_label(0)
     for object in objects:
-        print("object.to_kitti_format():\n",object.to_kitti_format())
+        print(object.to_kitti_format())

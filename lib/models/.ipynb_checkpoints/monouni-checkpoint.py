@@ -188,7 +188,7 @@ class MonoUNI(nn.Module):
         #two stage
         assert(mode in ['train','val','test'])
         if mode=='train':   #extract train structure in the train (only) and the val mode
-            # inds：目标物体的索引，用于在特征图中定位具体位置  这里的inds和masks是总targets文件得到的？那要怎么适应不同场景？
+            # inds：目标物体的索引，用于在特征图中定位具体位置
             inds,cls_ids = targets['indices'],targets['cls_ids']  # 从target中获得索引和类别
             # mask：掩码，用于筛选有效的目标区域
             masks = targets['mask_2d']  # 二值掩码，表示目标所在的位置
@@ -215,7 +215,7 @@ class MonoUNI(nn.Module):
         if num_masked_bin!=0:
             #get box2d of each roi region
             scale_box2d_masked = extract_input_from_tensor(box2d_maps,inds,mask)
-            #print("scale_box2d_mask:\n",scale_box2d_masked)
+            print("scale_box2d_mask:\n",scale_box2d_masked)
             #get roi feature
             # print(torch.max(box2d_masked[:,0]))
             # print(torch.max(box2d_masked[:,1]))
@@ -224,27 +224,27 @@ class MonoUNI(nn.Module):
             # print(torch.max(box2d_masked[:,4]))
             # 如果有有效的目标区域，则从 box2d_maps 中提取对应的区域，并使用 roi_align 从特征图 feat 中获得 7x7 大小的 ROI 特征。
             roi_feature_masked = roi_align(feat,scale_box2d_masked,[7,7])
-            #print("roi_feature_mask:\n",roi_feature_masked)
+            print("roi_feature_mask:\n",roi_feature_masked)
 
             # 为每个目标生成全局特征图 roi_feature_global，并与提取的 ROI 特征 roi_feature_masked 拼接在一起。
             # box2d_masked_copy 是用于指定全局区域的一个边界框张量，后续会用它来从特征图 feat 中提取全局的 ROI 特征。
             box2d_masked_copy = torch.zeros_like(scale_box2d_masked)
-            #print("box2d_masked_copy:\n",box2d_masked_copy)
+            print("box2d_masked_copy:\n",box2d_masked_copy)
             
             # scale_box2d_masked[:,0] 存放的是每个对象的 batch 索引值。将 scale_box2d_masked 的第 0 列复制到 box2d_masked_copy 的第 0 列，以保持 batch 信息一致。
             box2d_masked_copy[:,0] = scale_box2d_masked[:,0]
             # box2d_masked_copy[:,1] = 0
             # box2d_masked_copy[:,2] = 0 
-            # 因为输入特征wide=240,length=128 表示将所有对象的边界框右下角的 x 坐标设为 239，y设为127。此操作将全局边界框的大小固定下来，从而选取特征图中一个较大区域，作为“全局”参考区域。
+            # 表示将所有对象的边界框右下角的 x 坐标设为 239，y设为127。此操作将全局边界框的大小固定下来，从而选取特征图中一个较大区域，作为“全局”参考区域。
             box2d_masked_copy[:,3] = 239
             box2d_masked_copy[:,4] = 127
             # roi_align 是一个用于从特征图中对齐提取感兴趣区域（ROI）的操作，将 feat 中由 box2d_masked_copy 指定的区域缩放到大小 [7, 7]。
             # roi_feature_global 得到的特征表示一个全局上下文特征（即指定的全局区域的特征），用于为目标检测提供辅助的背景信息。[num_masked_bin, channels,7,7]
             roi_feature_global = roi_align(feat,box2d_masked_copy,[7,7])
-            #print("roi_feature_global:\n",roi_feature_global)
+            print("roi_feature_global:\n",roi_feature_global)
             # 得到的 roi_feature_masked_ 包含了局部特征和全局上下文特征，这样可以使模型在分析目标区域时，同时参考全局信息，有助于提高目标检测精度。
             roi_feature_masked_ = torch.cat((roi_feature_masked,roi_feature_global),1)
-            #print("roi_feature_masked_:\n:",roi_feature_masked_)
+            print("roi_feature_masked_:\n:",roi_feature_masked_)
             
             # #get coord range of each roi 坐标映射到原图像大小
             coord_ranges_mask2d = coord_ranges[scale_box2d_masked[:,0].long()]
@@ -261,7 +261,7 @@ class MonoUNI(nn.Module):
                        scale_box2d_masked[:,2:3]/HEIGHT*(coord_ranges_mask2d[:,1,1:2]-coord_ranges_mask2d[:,0,1:2])+coord_ranges_mask2d[:,0,1:2],
                        scale_box2d_masked[:,3:4]/WIDE  *(coord_ranges_mask2d[:,1,0:1]-coord_ranges_mask2d[:,0,0:1])+coord_ranges_mask2d[:,0,0:1],
                        scale_box2d_masked[:,4:5]/HEIGHT*(coord_ranges_mask2d[:,1,1:2]-coord_ranges_mask2d[:,0,1:2])+coord_ranges_mask2d[:,0,1:2]],1)
-            #print("box2d_masked:\n",box2d_masked)
+            print("box2d_masked:\n",box2d_masked)
             roi_calibs = calibs[box2d_masked[:,0].long()]
             roi_sin = calib_pitch_sin[box2d_masked[:,0].long()]
             roi_cos = calib_pitch_cos[box2d_masked[:,0].long()]
@@ -276,7 +276,7 @@ class MonoUNI(nn.Module):
             # 将左上角 [x1, y1] 和右下角 [x2, y2] 的三维相机坐标拼接，最终形成的 coords_in_camera_coord 大小为 [num_masked_bin, 4]，表示每个 ROI 的边界框在相机坐标中的坐标范围。
             coords_in_camera_coord = torch.cat([self.project2rect(roi_calibs,torch.cat([box2d_masked[:,1:3],torch.ones([num_masked_bin,1]).to(device_id)],-1))[:,:2],
                                           self.project2rect(roi_calibs,torch.cat([box2d_masked[:,3:5],torch.ones([num_masked_bin,1]).to(device_id)],-1))[:,:2]],-1)
-            #print("coords_in_camera_coord:\n",coords_in_camera_coord)
+            print("coords_in_camera_coord:\n",coords_in_camera_coord)
             
             box2d_v1 = box2d_masked[:,2:3] # 左上角的y坐标(y_min)
             box2d_v2 = box2d_masked[:,4:5] # 右下角的y坐标(y_max)
@@ -287,12 +287,12 @@ class MonoUNI(nn.Module):
             
             # box2d_masked[:,0,1]即 batch_idx。添加至coords_in_camera_coord的第一个位置，使其包含框的批次索引信息
             coords_in_camera_coord = torch.cat([box2d_masked[:,0:1],coords_in_camera_coord],-1)
-            #print("coords_in_camera_coord:\n",coords_in_camera_coord)
+            print("coords_in_camera_coord:\n",coords_in_camera_coord)
 
             # 生成坐标映射图 与前面的v_maps相同，最后生成(batch_size,7,7)的垂直方向网格
             coord_maps = torch.cat([torch.cat([coords_in_camera_coord[:,1:2]+i*(coords_in_camera_coord[:,3:4]-coords_in_camera_coord[:,1:2])/6 for i in range(7)],-1).unsqueeze(1).repeat([1,7,1]).unsqueeze(1),
                                 torch.cat([coords_in_camera_coord[:,2:3]+i*(coords_in_camera_coord[:,4:5]-coords_in_camera_coord[:,2:3])/6 for i in range(7)],-1).unsqueeze(2).repeat([1,1,7]).unsqueeze(1)],1)
-            #print("coord_maps:\n",coord_maps)
+            print("coord_maps:\n",coord_maps)
             
             # #concatenate coord maps with feature maps in the channel dim
             # 初始化一个全零矩阵，大小为(num_masked_bin, cls_num)，表示每个被mask的bin对应的类别 one-hot 编码
@@ -304,7 +304,7 @@ class MonoUNI(nn.Module):
             
             # 拼接所有特征
             roi_feature_masked = torch.cat([roi_feature_masked_,coord_maps,cls_hots.unsqueeze(-1).unsqueeze(-1).repeat([1,1,7,7])],1)
-            #print("roi_feature_masked:\n",roi_feature_masked)
+            print("roi_feature_masked:\n",roi_feature_masked)
 
             # 深度预测和不确定性估计
             # scale_box2d_masked[:,4]-....[:,2]，计算scale_box2d_masked中每个边界框的高度
@@ -313,7 +313,7 @@ class MonoUNI(nn.Module):
             scale_depth = torch.clamp((scale_box2d_masked[:,4]-scale_box2d_masked[:,2])*4*2.109375, min=1.0) / \
                           torch.clamp(box2d_masked[:,4]-box2d_masked[:,2], min=1.0)
             scale_depth = scale_depth.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-            #print("scale_depth:\n",scale_depth)
+            print("scale_depth:\n",scale_depth)
             
             # compute 3d dimension offset 输入神经网络得到目标信息
             size3d_offset = self.size_3d(roi_feature_masked)[:,:,0,0]
@@ -329,8 +329,8 @@ class MonoUNI(nn.Module):
                 depth_bin = self.depth_bin(roi_feature_masked)[:,:,0,0]  # 输入神经网络得到深度区间信息
                 res['depth_bin']= depth_bin
                 vis_depth = torch.sigmoid(vis_depth)  # sigmoid 归一化进行激活
-                # 焦距是从标定文件获得的，在测试时要怎么获得呢？
-                fx = roi_calibs[:,0,0]  # 这里fx和fy不同是为什么，有什么影响吗
+
+                fx = roi_calibs[:,0,0]
                 fy = roi_calibs[:,1,1]
                 cy = roi_calibs[:,1,2]
                 cy = cy.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)  # 转化为四维张量
@@ -367,7 +367,7 @@ class MonoUNI(nn.Module):
                     depth_bin_5 = torch.softmax(depth_bin[:,8:10],-1)
                     depth_bin = torch.cat((depth_bin_1[:,1:2],depth_bin_2[:,1:2],depth_bin_3[:,1:2],depth_bin_4[:,1:2],depth_bin_5[:,1:2]),-1)
                     _,depth_bin_max_index = torch.max(depth_bin,-1) # 最大概率的分档索引，用于选择最可能的深度范围
-                    #print("depth_bin_max_index:\n",depth_bin_max_index)
+                    print("depth_bin_max_index:\n",depth_bin_max_index)
                     # 与训练模式相同，先将vis_depth映射到实际深度范围，再通过相机参数和俯仰角进行调整
                     vis_depth_ =   vis_depth * (interval_max-interval_min) + interval_min
                     vis_depth_ = vis_depth_ * norm_theta / fp * scale_depth 
@@ -428,7 +428,10 @@ class MonoUNI(nn.Module):
         coord_map = torch.cat([torch.arange(WIDE).unsqueeze(0).repeat([HEIGHT,1]).unsqueeze(0),\
                         torch.arange(HEIGHT).unsqueeze(-1).repeat([1,WIDE]).unsqueeze(0)],0).unsqueeze(0).repeat([BATCH_SIZE,1,1,1]).type(torch.float).to(device_id)
         
-        box2d_centre = coord_map + ret['offset_2d']  # 将坐标图coord_map和offset_2d相加，得到边框中心点box2d_centre        
+        box2d_centre = coord_map + ret['offset_2d']  # 将坐标图coord_map和offset_2d相加，得到边框中心点box2d_centre
+        
+        print("box2d_center:\n",box2d_centre)
+        
         # 每个物体的2D边界框，以中心点box2d_centre为基准，结合size_2d的宽高生成边框范围
         box2d_maps = torch.cat([box2d_centre-ret['size_2d']/2,box2d_centre+ret['size_2d']/2],1) 
         # 得到的box2d_maps形状为(BATCH_SIZE,4,HEIGHT,WIDE)，分别对应[xmin,ymin,xmax,ymax]的边框
@@ -436,14 +439,14 @@ class MonoUNI(nn.Module):
         # 将批次索引信息添加到 box2d_maps 中，使模型能够在后续处理时区分不同样本的边框信息。
         box2d_maps = torch.cat([torch.arange(BATCH_SIZE).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).repeat([1,1,HEIGHT,WIDE]).type(torch.float).to(device_id),box2d_maps],1)
         # 新的 box2d_maps 形状为 (BATCH_SIZE, 5, HEIGHT, WIDE)，第一维度的索引值代表了每个样本的 ID
-        #print("box2d_maps\n",box2d_maps)
+        print("box2d_maps\n",box2d_maps)
         #box2d_maps is box2d in each bin
         # 最后，get_roi_feat 调用 get_roi_feat_by_mask 函数，将生成的 box2d_maps 作为输入，配合 inds 和 mask 信息，提取目标区域的具体特征。
-        #print("inds:\n",inds,"\nmask:\n",mask)
+        print("inds:\n",inds,"\nmask:\n",mask)
         res = self.get_roi_feat_by_mask(feat,box2d_maps,inds,mask,calibs,coord_ranges,cls_ids,mode, calib_pitch_sin, calib_pitch_cos)
         return res
 
-    # 第 227 行，这里输入的 point_img的深度是1，要怎么转换成真实深度呢？
+
     def project2rect(self,calib,point_img):
         """2维图像坐标系->3维相机坐标系"""
         c_u = calib[:,0,2]
@@ -471,7 +474,7 @@ class MonoUNI(nn.Module):
 if __name__ == '__main__':
     import torch
     net = CenterNet3D()
-    print("net:\n",net)
+    print(net)
     input = torch.randn(4, 3, 384, 1280)
-    print("input.shape, input.dtype:\n",input.shape, input.dtype)
+    print(input.shape, input.dtype)
     output = net(input)

@@ -36,7 +36,8 @@ def load_checkpoint(model, optimizer, filename, logger, map_location):
             for state in optimizer.state.values():
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
-                        state[k] = v.to(map_location)
+                        #state[k] = v.to(map_location)
+                        state[k]=v.cuda()
         logger.info("==> Done")
     else:
         raise FileNotFoundError

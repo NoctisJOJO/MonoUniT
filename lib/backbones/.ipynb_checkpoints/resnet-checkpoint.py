@@ -222,7 +222,7 @@ def resnet152(pretrained=False, **kwargs):
 if __name__ == '__main__':
     import torch
     net = resnet50(pretrained=True)
-    print("net:\n",net)
+    print(net)
     x = torch.randn(1, 3, 32, 32)
     y = net(x)
-    print("y.size():\n",y.size())
+    print(y.size())

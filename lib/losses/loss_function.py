@@ -8,28 +8,46 @@ from lib.losses.uncertainty_loss import laplacian_aleatoric_uncertainty_loss
 import operator
 
 class Hierarchical_Task_Learning:
+    """
+    分层任务学习
+    https://baijiahao.baidu.com/s?id=1709849147863768929&wfr=spider&for=pc
+    """
     def __init__(self,epoch0_loss,stat_epoch_nums=5):
+        """
+        初始化任务层次学习类。
+        :param epoch0_loss: 一个字典，表示初始的任务损失，键为任务名称，值为对应的损失值。
+        :param stat_epoch_nums: 用于统计历史损失的epoch数量（默认值为5）。
+        """
         self.index2term = [*epoch0_loss.keys()]
         self.term2index = {term:self.index2term.index(term) for term in self.index2term}  #term2index
         self.stat_epoch_nums = stat_epoch_nums
-        self.past_losses=[]
-        self.loss_graph = {'seg_loss':[],
+        self.past_losses=[] # 用于存储过去的任务损失（用于计算均值差）
+        
+        # 定义损失的层次依赖图，每个损失项依赖于其前置损失        
+        self.loss_graph = {'seg_loss':[], # 无前置依赖
                            'size2d_loss':[], 
                            'offset2d_loss':[],
-                           'offset3d_loss':['size2d_loss','offset2d_loss'], 
+                           'offset3d_loss':['size2d_loss','offset2d_loss'], #依赖与size2d_loss和offset2d_loss
                            'size3d_loss':['size2d_loss','offset2d_loss'], 
                            'heading_loss':['size2d_loss','offset2d_loss'], 
-                           'depth_loss':['size2d_loss','size3d_loss','offset2d_loss']}                                 
+                           'depth_loss':['size2d_loss','size3d_loss','offset2d_loss']} # 依赖于多个前置                             
     def compute_weight(self,current_loss,epoch):
+        """
+        计算当前epoch的任务损失权重。
+        :param current_loss: 当前任务的损失字典，键为任务名称，值为损失值张量。
+        :param epoch: 当前的epoch编号。
+        :return: 一个字典，表示每个任务的损失权重。
+        """
         T=150
         #compute initial weights
         loss_weights = {}
+        # 将当前损失值拼接成一个张量，便于计算
         eval_loss_input = torch.cat([_.unsqueeze(0) for _ in current_loss.values()]).unsqueeze(0)
         for term in self.loss_graph:
-            if len(self.loss_graph[term])==0:
-                loss_weights[term] = torch.tensor(1.0).to(current_loss[term].device)
-            else:
-                loss_weights[term] = torch.tensor(0.0).to(current_loss[term].device) 
+            if len(self.loss_graph[term])==0:  # 如果当前损失没有依赖项
+                loss_weights[term] = torch.tensor(1.0).to(current_loss[term].device) # 权重为1
+            else:  # 有依赖项
+                loss_weights[term] = torch.tensor(0.0).to(current_loss[term].device) # 权重为2
         #update losses list
         if len(self.past_losses)==self.stat_epoch_nums:
             past_loss = torch.cat(self.past_losses)
@@ -280,5 +298,5 @@ if __name__ == '__main__':
     c = torch.ones(2, 10).long()
     d = torch.zeros(2, 10, 1).long()
     e = torch.zeros(2, 10, 1)
-    print(compute_heading_loss(a, b, c, d, e))
+    print("compute_heading_loss:\n",compute_heading_loss(a, b, c, d, e))
 
