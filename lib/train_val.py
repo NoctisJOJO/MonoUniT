@@ -120,7 +120,7 @@ def main_worker(local_rank, nprocs, args):
     val_loader = DataLoader(
         dataset=val_set,
         batch_size=cfg["dataset"]["batch_size"] * 4,
-        num_workers=2,
+        num_workers=0,
         shuffle=False,
         pin_memory=True,
         drop_last=False,

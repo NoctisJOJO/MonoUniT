@@ -46,7 +46,7 @@ class Trainer(object):
         self.label_dir = os.path.join(
             self.root_dir, "label_2_4cls_filter_with_roi_for_eval"
         )
-        self.calib_dir = os.path.join(self.root_dir, "calib")
+        self.calib_dir = os.path.join(self.root_dir, "calib/camera_intrinsic")
         self.de_norm_dir = os.path.join(self.root_dir, "denorm")
 
         # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

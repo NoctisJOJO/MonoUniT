@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import cv2
 import pdb
@@ -7,38 +8,48 @@ import pdb
 
 def get_objects_from_label(label_file):
     with open(label_file, "r") as f:
-        lines = f.readlines()
+        lines = json.load(f)
     objects = [Object3d(line) for line in lines]
     return objects
 
 
 class Object3d(object):
-    def __init__(self, line):
-        label = line.strip().split(" ")
-        self.src = line
-        self.cls_type = label[0]  # 障碍物类别
-        self.trucation = float(label[1])  # 障碍物阶段
+    def __init__(self, label):
+        # self.src = line
+        self.cls_type = label["type"]  # 障碍物类别
+        self.trucation = float(label["truncated_state"])  # 障碍物阶段
         self.occlusion = float(
-            label[2]
+            label["occluded_state"]
         )  # 障碍物遮挡 0:fully visible 1:partly occluded 2:largely occluded 3:unknown
-        self.alpha = float(label[3])  # alpha，物体的观察角度，范围：-pi~pi，
+        self.alpha = float(label["alpha"])  # alpha，物体的观察角度，范围：-pi~pi，
         # （在相机坐标系下，以相机原点为中心，相机原点到物体中心的连线为半径，将物体绕相机y轴旋转至相机z轴，此时物体方向与相机x轴的夹角）
         # 二维边界框，xmin,ymin,xmax,ymax
         self.box2d = np.array(
-            (float(label[4]), float(label[5]), float(label[6]), float(label[7])),
+            (
+                float(label["2d_box"]["xmin"]),
+                float(label["2d_box"]["ymin"]),
+                float(label["2d_box"]["xmax"]),
+                float(label["2d_box"]["ymax"]),
+            ),
             dtype=np.float32,
         )
-        self.h = float(label[8])  # 三维物体的尺寸 长宽高
-        self.w = float(label[9])
-        self.l = float(label[10])
+        self.h = float(label["3d_dimensions"]["h"])  # 三维物体的尺寸 长宽高
+        self.w = float(label["3d_dimensions"]["w"])
+        self.l = float(label["3d_dimensions"]["l"])
         # 物体中心三维位置，x,y,z
         self.pos = np.array(
-            (float(label[11]), float(label[12]), float(label[13])), dtype=np.float32
+            (
+                float(label["3d_location"]["x"]),
+                float(label["3d_location"]["y"]),
+                float(label["3d_location"]["z"]),
+            ),
+            dtype=np.float32,
         )
         self.dis_to_cam = np.linalg.norm(self.pos)
-        self.ry = float(label[14])  # 3维物体的空间方向 rotation_y，
+        self.ry = float(label["rotation"])  # 3维物体的空间方向 rotation_y，
         # 在相机坐标系下，物体的全局方向角（物体前进方向与相机坐标系x轴的夹角），范围：-pi~pi。
-        self.score = float(label[15]) if label.__len__() == 16 else -1.0
+        # self.score = float(label[15]) if label.__len__() == 16 else -1.0
+        self.score = -1.0
         self.level_str = None
         self.level = self.get_obj_level()
 
@@ -186,18 +197,19 @@ class Denorm(object):
     它通过加载一个文件中的数值来初始化地面的法向量，然后根据该法向量计算相机与地面坐标系之间的转换矩阵。"""
 
     def __init__(self, denorm_file):
-        text_file = open(denorm_file, "r")
+        text_file = json.load(open(denorm_file, "r"))
         for line in text_file:
-            parsed = line.split("\n")[0].split(
-                " "
-            )  # 0.008187128 -0.975265 -0.2208872 7.23388195038
+            # parsed = line.split("\n")[0].split(
+            #     " "
+            # )  # 0.008187128 -0.975265 -0.2208872 7.23388195038
             # α β γ d  ; αx + βy + γz + d = 0 ; 平面的法向量 n = (α, β, γ)
+            parsed = line["para"].split(" ")
             if parsed is not None and len(parsed) > 3:  # 这里只用前三个
                 de_norm = []
                 de_norm.append(float(parsed[0]))  # 0.008187128
                 de_norm.append(float(parsed[1]))
                 de_norm.append(float(parsed[2]))
-        text_file.close()
+        # text_file.close()
         self.de_norm = np.array(de_norm)
         self.pitch_tan = float((self.de_norm[2] * 1.0 / self.de_norm[1]))
         self.pitch = float(np.arctan(self.pitch_tan))  # 俯仰角 θ = arctan(γ / β)
@@ -247,19 +259,32 @@ class Denorm(object):
 
 def get_calib_from_file(calib_file):
     with open(calib_file) as f:
-        lines = f.readlines()
+        lines = json.load(f)
     # eg:  P2: 2183.375019 0.000000 940.590363 0 0.000000 2329.297332 567.568513 0 0.000000 0.000000 1.000000 0
-    obj = (
-        lines[0].strip().split(" ")[1:]
-    )  # strip()去除首尾的空格，split以空格为分界，[1:]跳过第一个
-    P2 = np.array(obj, dtype=np.float32)
+    # obj = (
+    #     lines[0].strip().split(" ")[1:]
+    # )  # strip()去除首尾的空格，split以空格为分界，[1:]跳过第一个
+    # P2 = np.array(obj, dtype=np.float32)
     # obj = lines[3].strip().split(' ')[1:]
     # P3 = np.array(obj, dtype=np.float32)
     # obj = lines[4].strip().split(' ')[1:]
     # R0 = np.array(obj, dtype=np.float32)
     # obj = lines[5].strip().split(' ')[1:]
     # Tr_velo_to_cam = np.array(obj, dtype=np.float32)
-
+    P2 = np.zeros([3, 4], dtype=np.float32)
+    line = np.array(lines["cam_K"]).reshape(3, 3)
+    P2[0, 0] = line[0, 0]
+    P2[0, 1] = line[0, 1]
+    P2[0, 2] = line[0, 2]
+    P2[0, 3] = 0.0
+    P2[1, 0] = line[1, 0]
+    P2[1, 1] = line[1, 1]
+    P2[1, 2] = line[1, 2]
+    P2[1, 3] = 0.0
+    P2[2, 0] = line[2, 0]
+    P2[2, 1] = line[2, 1]
+    P2[2, 2] = line[2, 2]
+    P2[2, 3] = 0.0
     return {"P2": P2.reshape(3, 4)}  # 字典
     # [[2.1833750e+03 0.0000000e+00 9.4059039e+02 0.0000000e+00]   [fx   0  cx tx]
     # [0.0000000e+00 2.3292974e+03 5.6756854e+02 0.0000000e+00]    [ 0   fy cy ty]
